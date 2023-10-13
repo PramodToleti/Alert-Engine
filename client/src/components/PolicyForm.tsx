@@ -1,7 +1,7 @@
 import { useForm, SubmitHandler, useFieldArray } from "react-hook-form"
-import * as z from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useState } from "react"
+import * as z from "zod"
 
 import { Form, FormControl, FormField, FormItem, FormLabel } from "./ui/form"
 import { Input } from "./ui/input"
@@ -15,33 +15,16 @@ import {
 import { Button } from "./ui/button"
 import { Card } from "./ui/card"
 
-import { targets, user_roles } from "../constants/index"
+import { targets } from "../constants/index"
 import Editor from "./Editor"
+import { formSchema } from "@/schema/schema"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
-
-const formSchema = z.object({
-  name: z.string().min(5),
-  target: z.string().min(1),
-  org_id: z.string().min(1),
-  zone_id: z.string().min(1),
-  site_id: z.string().min(1),
-  app_level_alert: z.object({
-    freq: z.coerce.number().min(1),
-  }),
-  mail_level_alert: z.array(
-    z.object({
-      user_role: z.string().min(1),
-      alert_time: z.string().nonempty(),
-      freq: z.coerce.number().min(1),
-      wait_time: z.coerce.number().min(0),
-    })
-  ),
-})
 
 const PolicyForm = () => {
   const organization = useAppSelector((state) => state.organization.value)
   const zones = useAppSelector((state) => state.zones.zones)
   const sites = useAppSelector((state) => state.sites.sites)
+  const roles = useAppSelector((state) => state.roles.roles)
   const [data, setData] = useState({
     name: "",
     target: "",
@@ -62,6 +45,9 @@ const PolicyForm = () => {
   })
   const dispatch = useAppDispatch()
 
+  {
+    /* Fetch Zones */
+  }
   useEffect(() => {
     async function fetchZones() {
       if (!organization) return
@@ -74,17 +60,31 @@ const PolicyForm = () => {
     fetchZones()
   }, [organization, dispatch])
 
+  {
+    /* Fetch Sites */
+  }
   useEffect(() => {
     async function fetchSites() {
       const response = await fetch(
         `http://localhost:5000/api/sites/${data.zone_id}`
       )
       const responseData = await response.json()
-      console.log(responseData)
       dispatch({ type: "sites/setSites", payload: responseData })
     }
     fetchSites()
   }, [organization, data.zone_id, dispatch])
+
+  {
+    /* Fetch Roles */
+  }
+  useEffect(() => {
+    async function fetchUsers() {
+      const response = await fetch(`http://localhost:5000/api/roles`)
+      const responseData = await response.json()
+      dispatch({ type: "roles/setRoles", payload: responseData })
+    }
+    fetchUsers()
+  }, [dispatch])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -286,7 +286,7 @@ const PolicyForm = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {zones.map((each) => (
+                            {zones?.map((each) => (
                               <SelectItem value={each._id} key={each._id}>
                                 {each.name}
                               </SelectItem>
@@ -316,7 +316,7 @@ const PolicyForm = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {sites.map((each) => (
+                            {sites?.map((each) => (
                               <SelectItem value={each._id} key={each._id}>
                                 {each.site_name}
                               </SelectItem>
@@ -378,9 +378,9 @@ const PolicyForm = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {user_roles.map((each) => (
-                              <SelectItem value={each.value} key={each.value}>
-                                {each.label}
+                            {roles?.map((each) => (
+                              <SelectItem value={each.role_name} key={each._id}>
+                                {each.role_name}
                               </SelectItem>
                             ))}
                           </SelectContent>
