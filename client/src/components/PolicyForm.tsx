@@ -1,6 +1,7 @@
 import { useForm, SubmitHandler, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useState } from "react"
+import toast from "react-hot-toast"
 import * as z from "zod"
 
 import { Form, FormControl, FormField, FormItem, FormLabel } from "./ui/form"
@@ -19,30 +20,42 @@ import { targets } from "../constants/index"
 import Editor from "./Editor"
 import { formSchema } from "@/schema/schema"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
+import { useLocation, useNavigate } from "react-router-dom"
+import { PolicyData } from "@/types/types"
 
 const PolicyForm = () => {
   const organization = useAppSelector((state) => state.organization.value)
   const zones = useAppSelector((state) => state.zones.zones)
   const sites = useAppSelector((state) => state.sites.sites)
   const roles = useAppSelector((state) => state.roles.roles)
-  const [data, setData] = useState({
-    name: "",
-    target: "",
-    org_id: organization,
-    zone_id: "",
-    site_id: "",
-    app_level_alert: {
-      freq: 30,
-    },
-    mail_level_alert: [
-      {
-        user_role: "",
-        alert_time: "09:00",
+  const [loading, setLoading] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const policyData = location.state as PolicyData
+  let polData: PolicyData
+  if (policyData) {
+    polData = policyData
+  } else {
+    polData = {
+      name: "",
+      target: "",
+      org_id: organization,
+      zone_id: "",
+      site_id: "",
+      app_level_alert: {
         freq: 30,
-        wait_time: 0,
       },
-    ],
-  })
+      mail_level_alert: [
+        {
+          user_role: "",
+          alert_time: "09:00",
+          freq: 30,
+          wait_time: 0,
+        },
+      ],
+    }
+  }
+  const [data, setData] = useState<PolicyData>(polData)
   const dispatch = useAppDispatch()
 
   {
@@ -88,24 +101,7 @@ const PolicyForm = () => {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      target: "",
-      org_id: organization,
-      zone_id: "",
-      site_id: "",
-      app_level_alert: {
-        freq: 30,
-      },
-      mail_level_alert: [
-        {
-          user_role: "",
-          alert_time: "09:00",
-          freq: 30,
-          wait_time: 0,
-        },
-      ],
-    },
+    defaultValues: data,
   })
 
   const { control, watch } = form
@@ -181,9 +177,53 @@ const PolicyForm = () => {
     );
   }, [fields, data]); */
 
-  const onSubmit: SubmitHandler<z.infer<typeof formSchema>> = (data) => {
-    alert(JSON.stringify(data, null, 2))
+  const onSubmit: SubmitHandler<z.infer<typeof formSchema>> = async (data) => {
+    /* alert(JSON.stringify(data, null, 2)) */
     setData(data)
+    setLoading(true)
+    if (location.pathname === "/policies/new") {
+      const response = await fetch("http://localhost:5000/api/policies", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      const responseData = await response.json()
+      console.log(responseData)
+      if (response.ok) {
+        setLoading(false)
+        toast.success("Policy Created Successfully")
+        setTimeout(() => {
+          navigate("/policies")
+        }, 1000)
+      } else {
+        setLoading(false)
+        toast.error("Policy Creation Failed")
+      }
+    } else {
+      const response = await fetch(
+        `http://localhost:5000/api/policies/${policyData._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        }
+      )
+
+      const responseData = await response.json()
+      console.log(responseData)
+      if (response.ok) {
+        setLoading(false)
+        toast.success("Policy Updated Successfully")
+      } else {
+        setLoading(false)
+        toast.error("Policy Updation Failed")
+      }
+    }
   }
 
   return (
@@ -215,7 +255,10 @@ const PolicyForm = () => {
                 <FormItem>
                   <FormLabel>Target</FormLabel>
                   <FormControl>
-                    <Select onValueChange={field.onChange}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a Target" />
@@ -246,18 +289,27 @@ const PolicyForm = () => {
                   <FormItem>
                     <FormLabel>Zone</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select the Zone" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {zones.map((each) => (
-                            <SelectItem value={each._id} key={each._id}>
-                              {each.name}
+                          {zones.length > 0 ? (
+                            zones.map((each) => (
+                              <SelectItem value={each._id} key={each._id}>
+                                {each.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="" key="0">
+                              No Zones Found
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                     </FormControl>
@@ -279,18 +331,27 @@ const PolicyForm = () => {
                     <FormItem>
                       <FormLabel>Zone</FormLabel>
                       <FormControl>
-                        <Select onValueChange={field.onChange}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select the Zone" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {zones?.map((each) => (
-                              <SelectItem value={each._id} key={each._id}>
-                                {each.name}
+                            {zones.length > 0 ? (
+                              zones.map((each) => (
+                                <SelectItem value={each._id} key={each._id}>
+                                  {each.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="" key="0">
+                                No Zones Found
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
                       </FormControl>
@@ -309,18 +370,27 @@ const PolicyForm = () => {
                     <FormItem>
                       <FormLabel>Site</FormLabel>
                       <FormControl>
-                        <Select onValueChange={field.onChange}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select the Site" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {sites?.map((each) => (
-                              <SelectItem value={each._id} key={each._id}>
-                                {each.site_name}
+                            {sites.length > 0 ? (
+                              sites?.map((each) => (
+                                <SelectItem value={each._id} key={each._id}>
+                                  {each.site_name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="" key="0">
+                                No Sites Found
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
                       </FormControl>
@@ -362,7 +432,7 @@ const PolicyForm = () => {
             <div className="mt-15 mb-0">
               <FormLabel className="text-lg mt-8">Mail Level Alerts</FormLabel>
             </div>
-            {fields.map((field, index) => (
+            {fields?.map((field, index) => (
               <div key={field.id}>
                 <FormField
                   control={control}
@@ -371,7 +441,10 @@ const PolicyForm = () => {
                     <FormItem>
                       <FormLabel>User Role</FormLabel>
                       <FormControl>
-                        <Select onValueChange={field.onChange}>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select the User" />
@@ -501,7 +574,34 @@ const PolicyForm = () => {
               </div>
             ))}
 
-            <Button type="submit">Submit</Button>
+            <Button type="submit" className="w-full mt-10 text-center">
+              {loading ? (
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  ></path>
+                </svg>
+              ) : location.pathname === "/policies/new" ? (
+                "Create"
+              ) : (
+                "Update"
+              )}
+            </Button>
           </form>
         </Form>
       </Card>

@@ -53,6 +53,7 @@ const Navbar = () => {
       const data = await response.json()
       if (response.ok) {
         setLoading(false)
+        console.log(data)
         setOrgs(data)
       }
     }

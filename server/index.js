@@ -251,6 +251,89 @@ app.get("/api/userRoles", async (req, res) => {
   }
 })
 
+//Policies
+app.post("/api/policies", async (req, res) => {
+  try {
+    const db = await connectToDatabase()
+    const collection = db.collection("policies")
+    const newPolicy = req.body
+    console.log(newPolicy)
+    const result = await collection.insertOne(newPolicy)
+    res.json(result)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
+app.get("/api/policies", async (req, res) => {
+  try {
+    const db = await connectToDatabase()
+    const collection = db.collection("policies")
+    const allPolicies = await collection.find({}).toArray()
+    res.json(allPolicies)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
+app.get("/api/policies/:id", async (req, res) => {
+  try {
+    const db = await connectToDatabase()
+    const collection = db.collection("policies")
+    const policy = await collection
+      .find({
+        org_id: req.params.id,
+      })
+      .toArray()
+    if (!policy) {
+      return res.status(404).json({ error: "Policy not found" })
+    }
+    res.json(policy)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
+app.put("/api/policies/:id", async (req, res) => {
+  try {
+    const db = await connectToDatabase()
+    const collection = db.collection("policies")
+    const updatedPolicy = req.body
+    const result = await collection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: updatedPolicy }
+    )
+    console.log(result)
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({ error: "Policy not found" })
+    }
+    res.json({ message: "Policy updated successfully" })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
+app.delete("/api/policies/:id", async (req, res) => {
+  try {
+    const db = await connectToDatabase()
+    const collection = db.collection("policies")
+    const result = await collection.deleteOne({
+      _id : new ObjectId(req.params.id),
+    })
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "Policy not found" })
+    }
+    res.json({ message: "Policy deleted successfully" })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`)
 })
