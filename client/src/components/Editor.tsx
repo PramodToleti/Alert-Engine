@@ -1,28 +1,15 @@
+import { PolicyData } from "@/types/types"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { darcula } from "react-syntax-highlighter/dist/esm/styles/prism"
 
-interface Data {
-  name: string
-  target: string
-  app_level_alert: {
-    freq: number
-  }
-  mail_level_alert: {
-    user_role: string
-    alert_time: string
-    freq: number
-    wait_time: number
-  }[]
-}
-
 interface Props {
-    data: Data
+  data: PolicyData
 }
 
 const Editor = ({ data }: Props) => {
   return (
     <div className="md:w-2/5 md:absolute top-28 right-10 lg:right-24">
-      <SyntaxHighlighter language="json" style={darcula} >
+      <SyntaxHighlighter language="json" style={darcula}>
         {JSON.stringify(data, null, 2)}
       </SyntaxHighlighter>
     </div>
